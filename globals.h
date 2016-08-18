@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cmath>
 
 #define G 1.0
 
@@ -10,15 +11,28 @@ typedef long double ldb;
 struct vec3
 {
     ldb x, y, z;
-    vec3() {}
+    vec3(): x(0), y(0), z(0) {}
     vec3(const ldb &x_, const ldb &y_, const ldb &z_): 
 	x(x_), y(y_), z(z_) {}
 
+    inline void print()
+    {
+	printf("%.8lf %.8lf %.8lf", x, y, z);
+    }
+
     inline vec3 operator +(const vec3 &V) const
     {
-	vec3 res;
-	res.x = x + V.x, res.y = y + V.y, res.z = z + V.z;
-	return res;
+	return vec3(x + V.x, y + V.y, z + V.z);
+    }
+
+    inline vec3 operator -(const vec3 &V) const
+    {
+	return vec3(x - V.x, y - V.y, z - V.z);
+    }
+
+    inline vec3 operator *(const ldb &q) const
+    {
+	return vec3(q * x, q * y, q * z);
     }
 
     inline void operator +=(const vec3 &V)
@@ -26,21 +40,40 @@ struct vec3
 	x += V.x, y += V.y, z += V.z;
     }
 
-    inline void operator /=(const ldb &q)
+    inline void operator -=(const vec3 &V)
     {
-	x /= q, y /= q, z /= q;
+	x -= V.x, y -= V.y, z -= V.z;
     }
 
+    inline void operator *=(const ldb &q)
+    {
+	x *= q, y *= q, z *= q;
+    }
+
+    inline ldb norm() const
+    {
+	return sqrt(sq_norm());
+    }
+
+    inline ldb sq_norm() const
+    {
+	return x * x + y * y + z * z;
+    } //the square of the norm of this vector
+
+    inline void normalize()
+    {
+	(*this) *= 1.0 / norm();
+    }
 };
 
 inline ldb dis(const vec3 &A, const vec3 &B)
 {
-    
+    return sqrt(sq_dis(A, B));
 }
 
-inline ldb sqr_dis(const vec3 &A, const vec3 &B)
+inline ldb sq_dis(const vec3 &A, const vec3 &B)
 {
-    
+    return (A - B).sq_norm();
 } //the square of distance between A and B
 
 struct particle
@@ -59,10 +92,12 @@ struct particle
 	return position;
     }
     
-    inline void move(const vec3 &F)
+    inline void move(const vec3 &acceleration)
     {
-	velocity += a;
+	acceleration *= 0.5;
+	velocity += acceleration;
 	position += velocity;
+	velocity += acceleration;
     }
     
 private:
@@ -89,8 +124,14 @@ struct universe
 	for (int i = 0; i < pnum; i++)
 	    for (int j = i + 1; j < pnum; j++)
 	    {
-		vec3 F;
+		vec3 f = gravity(P[i], P[j]);
+		F[i] -= f, F[j] += f;
 	    }
+
+	for (int i = 0; i < pnum; i++)
+	    F[i] *= 1.0 / P[i].Mass();
+	for (int i = 0; i < pnum; i++)
+	    P[i].move(F[i]);
     }
 
     inline void draw()
@@ -103,9 +144,11 @@ private:
     particle *P; //array of particles
     vec3 *F; //temp array for storing forces acting on particles
     
-    inline ldb gravity(const particle &A, const particle &B)
+    inline vec3 gravity(const particle &A, const particle &B)
     {
-	return G * (A.Mass() * B.Mass()) / sqr_dis(A.Position(), B.Position);
-    }
+	vec3 res = A - B; res.normalize();
+	res *= G * (A.Mass() * B.Mass()) / sq_dis(A.Position(), B.Position);
+	return res;
+    } //the gravity force exerted by A on B
     
 };
