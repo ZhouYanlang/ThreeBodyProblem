@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <string>
 #include <cmath>
 
 #define G 1.0
@@ -8,6 +9,8 @@
 typedef double db;
 typedef long double ldb;
 
+char format_string[100];
+
 struct vec3
 {
     ldb x, y, z;
@@ -15,16 +18,24 @@ struct vec3
     vec3(const ldb &x_, const ldb &y_, const ldb &z_): 
 	x(x_), y(y_), z(z_) {}
 
-    inline void print()
+    inline void print() const
     {
-	printf("%.8lf %.8lf %.8lf", x, y, z);
+	printf("%.8Lf %.8Lf %.8Lf", x, y, z);
     }
+
+    /*
+    inline void print(int k) //arg: number of decimal places
+    {
+	snprintf(format_string, 100, "%%.%dLf, %%.%dLf, %%.%dLf", k, k, k);
+	printf(format_string, x, y, z);
+    }
+    */
 
     inline vec3 operator +(const vec3 &V) const
     {
 	return vec3(x + V.x, y + V.y, z + V.z);
     }
-
+    
     inline vec3 operator -(const vec3 &V) const
     {
 	return vec3(x - V.x, y - V.y, z - V.z);
@@ -66,41 +77,53 @@ struct vec3
     }
 };
 
-inline ldb dis(const vec3 &A, const vec3 &B)
-{
-    return sqrt(sq_dis(A, B));
-}
-
 inline ldb sq_dis(const vec3 &A, const vec3 &B)
 {
     return (A - B).sq_norm();
 } //the square of distance between A and B
 
+inline ldb dis(const vec3 &A, const vec3 &B)
+{
+    return (A - B).norm();
+}
+
 struct particle
 {
     particle() {}
-    particle(const ldb mass_, const vec3 velocity_, const vec3 position_):
-	mass(mass_), velocity(velocity_), position(position_) {}
+    particle(const char *name_, const ldb &mass_, const vec3 &position_, const vec3 &velocity_):
+	mass(mass_), position(position_), velocity(velocity_)
+    {
+	name = new char[strlen(name_)];
+	memcpy(name, name_, strlen(name_));
+    }
     
-    inline ldb Mass()
+    inline ldb m() const
     {
 	return mass;
     }
 
-    inline vec3 Position()
+    inline vec3 r() const
     {
 	return position;
     }
     
-    inline void move(const vec3 &acceleration)
+    inline void update(vec3 &a)
     {
-	acceleration *= 0.5;
-	velocity += acceleration;
+	a *= 0.5 / mass; //0.5 * a = 0.5 * F / m
+	velocity += a;
 	position += velocity;
-	velocity += acceleration;
+	velocity += a;
+    }
+
+    inline void print() const
+    {
+	printf("%s: ", name);
+	position.print();
+	printf("\n");
     }
     
 private:
+    char *name;
     ldb mass;
     vec3 position, velocity;
 };
@@ -108,46 +131,50 @@ private:
 struct universe
 {
     universe() {}
-    universe(const particle *P_, const int &pnum_):
-	P(P_), pnum(pnum_) 
+    universe(const particle *P_, const int &num_)
+	:num(num_)
     {
-	F = new vec3[pnum];
+	P = new particle[num];
+	memcpy(P, P_, num * sizeof(particle));
+	
+	F = new vec3[num];
     }
 
     ~universe()
     {
+	delete []P;
 	delete []F;
     }
     
     inline void update()
     {
-	for (int i = 0; i < pnum; i++)
-	    for (int j = i + 1; j < pnum; j++)
+	for (int i = 0; i < num; i++)
+	    for (int j = i + 1; j < num; j++)
 	    {
 		vec3 f = gravity(P[i], P[j]);
 		F[i] -= f, F[j] += f;
 	    }
-
-	for (int i = 0; i < pnum; i++)
-	    F[i] *= 1.0 / P[i].Mass();
-	for (int i = 0; i < pnum; i++)
-	    P[i].move(F[i]);
+	
+	for (int i = 0; i < num; i++)
+	    P[i].update(F[i]);
     }
-
+    
     inline void draw()
     {
-	
+	for (int i = 0; i < num; i++)
+	    P[i].print();
+	printf("\n");
     }
 
 private:
-    int pnum; //particle number
+    int num; //number of particles
     particle *P; //array of particles
     vec3 *F; //temp array for storing forces acting on particles
     
     inline vec3 gravity(const particle &A, const particle &B)
     {
-	vec3 res = A - B; res.normalize();
-	res *= G * (A.Mass() * B.Mass()) / sq_dis(A.Position(), B.Position);
+	vec3 res = A.r() - B.r(); res.normalize();
+	res *= G * (A.m() * B.m()) / sq_dis(A.r(), B.r());
 	return res;
     } //the gravity force exerted by A on B
     
