@@ -4,8 +4,8 @@ particle P[10];
 
 int main()
 {
-    particle star("star", 100000000.0, vec3(0, 0, 0), vec3(0, 0, 0));
-    particle planet("planet", 1.0, vec3(100000000.0, 0, 0), vec3(0, 1, 0));
+    particle star("star", 10000000.0, vec3(0, 0, 0), vec3(0, 0, 0));
+    particle planet("planet", 1.0, vec3(10000000.0, 0, 0), vec3(0, 1, 0));
     P[0] = star, P[1] = planet;
     
     universe U(P, 2);
